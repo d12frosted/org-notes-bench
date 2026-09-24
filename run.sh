@@ -58,6 +58,8 @@ case "$cmd" in
     done ;;
   report)
     "$EMACS" -Q --batch -l report.el ;;
+  _one)
+    bench "$1" "$2" "$3" ;;
   *)
     sed -n '2,12p' "$0"; exit 1 ;;
 esac

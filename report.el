@@ -62,9 +62,12 @@
   (setq command-line-args-left nil)
   ;; Most recent version per tool
   (dolist (row rows)
-    (puthash (report-get row 'tool) (report-version row) latest))
+    (when-let* ((version (report-version row)))
+      (puthash (report-get row 'tool) version latest)))
   (dolist (row rows)
-    (when (equal (report-version row) (gethash (report-get row 'tool) latest))
+    ;; Rows without versions (runs the watchdog stopped) count as latest
+    (when (member (report-version row)
+                  (list nil (gethash (report-get row 'tool) latest)))
       (push row (alist-get (list (report-get row 'tool)
                                  (report-get row 'corpus)
                                  (report-get row 'op))
@@ -94,8 +97,12 @@
                       (mapcar (lambda (tool)
                                 (cons tool
                                       (mapcar (lambda (c)
-                                                (report-fmt-ms
-                                                 (funcall stat tool c (nth 1 spec) (nth 2 spec))))
+                                                (let ((value (funcall stat tool c (nth 1 spec) (nth 2 spec)))
+                                                      (stopped (funcall stat tool c "cold" 'stopped-after-ms)))
+                                                  (cond (value (report-fmt-ms value))
+                                                        (stopped (format "stopped after %s"
+                                                                         (report-fmt-ms stopped)))
+                                                        (t "-"))))
                                               corpora)))
                               tools))))
     (report-table "Saving a large file (1k-note corpus)"
