@@ -107,9 +107,10 @@
                                 (cons tool
                                       (mapcar (lambda (c)
                                                 (let ((value (funcall stat tool c (nth 1 spec) (nth 2 spec)))
-                                                      (stopped (funcall stat tool c "cold" 'stopped-after-ms)))
+                                                      (stopped (or (funcall stat tool c (nth 1 spec) 'stopped-after-ms)
+                                                                   (funcall stat tool c "cold" 'stopped-after-ms))))
                                                   (cond (value (report-fmt-ms value))
-                                                        (stopped (format "stopped after %s"
+                                                        (stopped (format "not done after %s"
                                                                          (report-fmt-ms stopped)))
                                                         (t "-"))))
                                               corpora)))

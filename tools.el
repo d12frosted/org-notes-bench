@@ -22,10 +22,10 @@
     ;; vulpea with the settings its README recommends for speed
     (vulpea-tuned :adapter vulpea-tuned :packages (emacsql s dash)
                   :vc (vulpea "https://github.com/d12frosted/vulpea"
-                              "8e70ec07bcf665062535addb17db3b5b86331622"))
+                              "f3af60a6dcfdababa74232b3b58fd44c511cfc4a"))
     (vulpea-master :adapter vulpea :packages (emacsql s dash)
                    :vc (vulpea "https://github.com/d12frosted/vulpea"
-                               "8e70ec07bcf665062535addb17db3b5b86331622"))))
+                               "f3af60a6dcfdababa74232b3b58fd44c511cfc4a"))))
 
 (provide 'tools)
 ;;; tools.el ends here
