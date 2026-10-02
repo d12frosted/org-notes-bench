@@ -19,6 +19,10 @@
 (require 'package)
 
 (defconst bench-root (file-name-directory (or load-file-name buffer-file-name)))
+
+(defconst bench-harness-version 2
+  "Bumped when a change to the harness invalidates earlier results.
+2: show-paren no longer runs during the save benchmarks.")
 (load (expand-file-name "tools.el" bench-root) nil t)
 
 ;;; Measuring
@@ -110,6 +114,7 @@ longest stretch Emacs could not have answered a keystroke) and
                       :corpus (file-name-nondirectory (directory-file-name bench-corpus))
                       :notes (plist-get bench-corpus-info :n)
                       :time (format-time-string "%FT%T%z")
+                      :harness bench-harness-version
                       :emacs emacs-version
                       :org (org-version)
                       :versions (bench-package-versions))

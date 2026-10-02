@@ -67,9 +67,12 @@
     (when-let* ((version (report-version row)))
       (puthash (report-get row 'tool) version latest)))
   (dolist (row rows)
-    ;; Rows without versions (runs the watchdog stopped) count as latest
-    (when (member (report-version row)
-                  (list nil (gethash (report-get row 'tool) latest)))
+    ;; Rows without versions (runs the watchdog stopped) count as latest;
+    ;; save runs from before harness 2 included show-paren's idle timer
+    (when (and (member (report-version row)
+                       (list nil (gethash (report-get row 'tool) latest)))
+               (not (and (string-prefix-p "save" (or (report-get row 'op) ""))
+                         (< (or (report-get row 'harness) 1) 2))))
       (push row (alist-get (list (report-get row 'tool)
                                  (report-get row 'corpus)
                                  (report-get row 'op))
