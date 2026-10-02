@@ -20,9 +20,10 @@
 
 (defconst bench-root (file-name-directory (or load-file-name buffer-file-name)))
 
-(defconst bench-harness-version 2
+(defconst bench-harness-version 3
   "Bumped when a change to the harness invalidates earlier results.
-2: show-paren no longer runs during the save benchmarks.")
+2: show-paren no longer runs during the save benchmarks.
+3: a save run waits until its cleanup is indexed before exiting.")
 (load (expand-file-name "tools.el" bench-root) nil t)
 
 ;;; Measuring
@@ -261,7 +262,12 @@ one."
       (goto-char (point-max))
       (when (re-search-backward "^\\* Bench marker " nil t)
         (delete-region (1- (point)) (point-max)))
-      (let ((inhibit-message t)) (save-buffer)))))
+      (let ((inhibit-message t)) (save-buffer))
+      ;; Exit only once the tool has indexed the cleanup too, or the next
+      ;; run starts with a stale file and re-indexes it during its save
+      (unless (plist-get (bench-idle-until (lambda () (not (bench-tool-lookup id))) 900)
+                         :done)
+        (message "warning: cleanup of %s was not indexed" file)))))
 
 ;;; Main
 
