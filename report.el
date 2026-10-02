@@ -2,6 +2,8 @@
 
 ;; Usage: emacs -Q --batch -l report.el [RAW.jsonl]
 ;;
+;; REPORT_TOOLS (space separated) limits the report to those tools.
+;;
 ;; Groups runs by tool, corpus and operation and reports the median of
 ;; each group.  Only the most recent version of each tool counts: runs
 ;; recorded against older versions are skipped.
@@ -72,7 +74,9 @@
                                  (report-get row 'corpus)
                                  (report-get row 'op))
                            groups nil nil #'equal))))
-  (let* ((tools (seq-uniq (mapcar (lambda (r) (report-get r 'tool)) rows)))
+  (let* ((only (when-let* ((env (getenv "REPORT_TOOLS"))) (split-string env)))
+         (tools (seq-filter (lambda (tool) (or (null only) (member tool only)))
+                            (seq-uniq (mapcar (lambda (r) (report-get r 'tool)) rows))))
          (corpora (sort (seq-uniq
                          (delq nil (mapcar (lambda (r)
                                              (let ((c (report-get r 'corpus)))
@@ -88,7 +92,9 @@
     (dolist (tool tools)
       (princ (format "- %s: %s\n" tool (gethash tool latest))))
     (let ((sizes (mapcar (lambda (c) (substring c 7)) corpora)))
-      (dolist (spec '(("Cold index" "cold" ms)
+      (dolist (spec '(("Cold index (synchronous, nothing else running)" "cold" ms)
+                      ("First run on an empty index, until every note is indexed" "first-run" ms)
+                      ("First run: longest freeze while indexing" "first-run" max-block-ms)
                       ("Warm start, until a note can be looked up" "warm" ms)
                       ("Open the find command (until the minibuffer)" "find" ms)
                       ("Backlinks of the hub note, first call" "backlinks" first-ms)

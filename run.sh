@@ -45,7 +45,7 @@ case "$cmd" in
       for tool in "${tools[@]}"; do
         for _ in $(seq "$REPEAT"); do
           bench "$tool" "$(corpus_dir "$n")" cold
-          for op in warm find backlinks; do bench "$tool" "$(corpus_dir "$n")" "$op"; done
+          for op in warm find backlinks first-run; do bench "$tool" "$(corpus_dir "$n")" "$op"; done
         done
       done
     done ;;

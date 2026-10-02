@@ -4,13 +4,13 @@
 ;;
 ;; TOOL    a key of `bench-tools' (tools.el); its packages live in .deps/TOOL
 ;; CORPUS  a directory made by corpus.el
-;; OP      cold | warm | find | backlinks | save-1mb | save-10mb
+;; OP      cold | first-run | warm | find | backlinks | save-1mb | save-10mb
 ;;
 ;; Each run is a fresh Emacs.  The tool's state (database, caches,
 ;; org-id locations, even `user-emacs-directory') lives in
 ;; data/state/TOOL/CORPUS-NAME, so tools never share anything.
-;; `cold' deletes that state first and builds it; every other
-;; operation starts from the state the last `cold' left behind.
+;; `cold' and `first-run' delete that state first and build it; every
+;; other operation starts from the state the last one left behind.
 ;;
 ;; One JSON line per run is appended to results/raw.jsonl.
 
@@ -155,6 +155,37 @@ longest stretch Emacs could not have answered a keystroke) and
   (unless (bench-lookup-hub)
     (error "Hub note not found after cold index")))
 
+(defun bench-expected-notes ()
+  "Number of notes in the corpus: one per :ID: line."
+  (string-to-number
+   (shell-command-to-string
+    (format "grep -rh '^:ID:' %s | wc -l"
+            (shell-quote-argument (expand-file-name "notes" bench-corpus))))))
+
+(defun bench-op-first-run ()
+  "Start on an empty index as a user's init would, until all is indexed.
+
+Reports the time until every note is indexed and the longest freeze
+on the way, which is what tells a background index from a blocking
+one."
+  (let* ((expected (bench-expected-notes))
+         (last-check 0.0)
+         (count 0)
+         (indexed-p (lambda ()
+                      ;; Counting can be expensive at 100k; look twice a second
+                      (when (> (- (bench-now) last-check) 0.5)
+                        (setq last-check (bench-now)
+                              count (or (ignore-errors (bench-tool-count)) 0)))
+                      (>= count expected)))
+         (start (bench-time (bench-tool-start)))
+         (wait (bench-idle-until indexed-p 7200)))
+    (bench-put :start-ms (bench-ms (car start)))
+    (bench-put :ms (bench-ms (+ (car start) (plist-get wait :wall))))
+    (bench-put :max-block-ms (bench-ms (max (car start) (plist-get wait :max-block))))
+    (bench-put :total-block-ms (bench-ms (+ (car start) (plist-get wait :total-block))))
+    (bench-put :indexed count)
+    (bench-put :done (plist-get wait :done))))
+
 (defun bench-op-warm ()
   "Start as a user's init would, until a known note can be looked up."
   (let* ((start (bench-time (bench-tool-start)))
@@ -239,7 +270,7 @@ longest stretch Emacs could not have answered a keystroke) and
                      (format "data/state/%s/%s/" tool
                              (file-name-nondirectory (directory-file-name corpus)))
                      bench-root))
-  (when (eq op 'cold)
+  (when (memq op '(cold first-run))
     (delete-directory bench-state t))
   (make-directory bench-state t)
   (setq user-emacs-directory (expand-file-name "emacs.d/" bench-state)
@@ -260,6 +291,7 @@ longest stretch Emacs could not have answered a keystroke) and
   (bench-put :op (symbol-name op))
   (pcase op
     ('cold (bench-op-cold))
+    ('first-run (bench-op-first-run))
     ('warm (bench-op-warm))
     ('find (bench-op-find))
     ('backlinks (bench-op-backlinks))

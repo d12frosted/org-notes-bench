@@ -1,6 +1,6 @@
 ;;; vulpea.el --- vulpea adapter -*- lexical-binding: t; -*-
 
-;; Default settings: temp-buffer parsing, no async extraction.
+;; Default settings (since 2.8: parsing in a background worker).
 ;; https://github.com/d12frosted/vulpea
 
 (defun bench-tool-configure (corpus state)
