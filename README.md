@@ -45,6 +45,10 @@ who saves and then waits: it lets timers and subprocess output run through
 `accept-process-output` in 10ms slices, and runs idle timers by hand once
 their delay has passed (each once, as in one idle period). Any slice that
 overruns is time Emacs spent blocked; the longest overrun is the freeze.
+Editor features that run on idle timers and have nothing to do with the
+notes (`show-paren-mode`, `global-eldoc-mode`) are turned off, since they
+would otherwise run in the visited buffer and count against whichever
+tool is being measured.
 
 Each tool's state (database, cache files, `org-id-locations`, even
 `user-emacs-directory`) lives under `data/state/TOOL/CORPUS`, so tools

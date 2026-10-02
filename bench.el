@@ -281,6 +281,11 @@ one."
         auto-save-default nil
         create-lockfiles nil)
   (make-directory user-emacs-directory t)
+  ;; Editor features with idle timers would run in the visited buffer
+  ;; during the save benchmarks and count against whichever tool is
+  ;; measured (show-paren scanning a 10MB buffer takes ~250ms)
+  (show-paren-mode -1)
+  (global-eldoc-mode -1)
   (package-initialize)
   (require 'org)
   (require 'org-id)
