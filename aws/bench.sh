@@ -160,7 +160,7 @@ aws ec2 wait instance-running --instance-ids "$IID"
 IP=$(aws ec2 describe-instances --instance-ids "$IID" \
   --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
 
-SSH_OPTS="-i $KEY -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$OUT/known_hosts -o ConnectTimeout=10 -o ServerAliveInterval=30 -o LogLevel=ERROR"
+SSH_OPTS="-i $KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$OUT/known_hosts -o ConnectTimeout=10 -o ServerAliveInterval=30 -o LogLevel=ERROR"
 rsh() { ssh $SSH_OPTS "ubuntu@$IP" "$@"; }
 rcp() { scp -q $SSH_OPTS "$@"; }
 for _ in $(seq 1 60); do rsh true 2>/dev/null && break; sleep 5; done
