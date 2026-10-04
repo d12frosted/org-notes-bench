@@ -86,6 +86,40 @@ Tools and versions are pinned in `tools.el`: archive packages install the
 version MELPA Stable serves, git packages a fixed revision. The adapters
 are in `adapters/`; each defines the same eight functions.
 
+### On a clean machine (AWS)
+
+A laptop that is busy with anything else makes the numbers noisy.
+`aws/bench.sh` runs the benchmark on a fresh EC2 instance instead and
+needs nothing but a valid session (`aws login`) and a default VPC:
+
+```sh
+aws/bench.sh --tool vulpea-master --tool org-node --sizes 10000 --ops cold,first-run
+aws/bench.sh --tree base=../vulpea-main --tree branch=../vulpea \
+  --sizes 10000,100000 --ops first-run --repeat 3
+```
+
+`--tool` takes a tool from `tools.el`; `--tree NAME=DIR` benchmarks the
+vulpea sources of a local checkout as they are on disk, which is how to
+compare a branch with its base. Tools take turns in every round, so
+whatever the machine does hits all of them alike.
+
+The default instance, `c7gd.2xlarge` (8 Graviton cores, 16GB), has a
+local NVMe disk, and the corpora and every tool's state live on it.
+The root disk of an EC2 instance is network storage, where each `fsync`
+costs milliseconds; on it, a tool that commits per file looks far
+slower than on a laptop. `--state tmpfs` keeps the state in memory
+instead, to isolate a change that only saves CPU. `fswatch` is
+installed as it usually is on macOS: without it vulpea falls back to
+polling for external changes, which dominates a first run at 100k notes.
+Emacs is built from source (`--emacs`, default 30.2), which takes about
+ten minutes of each run.
+
+The run's results, logs and a summary of medians (`aws/compare.el`)
+land in `results/aws/RUN/`. The script removes the instance, its key
+pair and its security group when it exits, also on failure or Ctrl-C;
+the instance terminates itself after `--max-hours` (default 3) in case
+the script cannot. An hour costs about $0.40.
+
 ## Results
 
 See [RESULTS.md](RESULTS.md) for the latest run, with the machine it ran
