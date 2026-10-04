@@ -98,6 +98,9 @@ aws/bench.sh --tree base=../vulpea-main --tree branch=../vulpea \
   --sizes 10000,100000 --ops first-run --repeat 3
 ```
 
+The save benchmarks run on their own corpus, `--sizes save`, and need
+an index first: `--ops cold,save-1mb,save-10mb`.
+
 `--tool` takes a tool from `tools.el`; `--tree NAME=DIR` benchmarks the
 vulpea sources of a local checkout as they are on disk, which is how to
 compare a branch with its base. Tools take turns in every round, so

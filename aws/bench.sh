@@ -17,7 +17,8 @@
 #                      as tool NAME (repeatable); the *.el files of DIR
 #                      are copied as they are on disk, uncommitted
 #                      changes included
-#   --sizes N,N        corpus sizes (default 10000)
+#   --sizes N,N        corpus sizes (default 10000); `save' is the corpus
+#                      of save-1mb and save-10mb (1000 notes, big files)
 #   --ops OP,OP        operations, run in this order (default first-run)
 #   --repeat N         rounds; each round runs every tool once, so tools
 #                      interleave (default 3)
@@ -33,6 +34,10 @@
 # Example: compare a vulpea branch with master at 10k and 100k notes
 #   aws/bench.sh --tree base=../vulpea-master --tree branch=../vulpea \
 #     --sizes 10000,100000 --ops first-run --repeat 3
+#
+# Example: the save benchmarks, which need an index first
+#   aws/bench.sh --tree base=../vulpea-master --tree branch=../vulpea \
+#     --sizes save --ops cold,save-1mb,save-10mb --repeat 3
 
 set -euo pipefail
 

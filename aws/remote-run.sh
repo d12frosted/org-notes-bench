@@ -6,8 +6,10 @@
 #
 # TREES are the names of vulpea checkouts copied to /mnt/bench/trees;
 # TOOLS lists every tool to run, trees included.  SIZES and OPS are
-# comma separated.  Each round runs every tool once per size and op, so
-# tools interleave and drift on the machine hits them alike.
+# comma separated; the size `save' is the corpus of the save
+# operations (1000 notes plus big files).  Each round runs every tool
+# once per size and op, so tools interleave and drift on the machine
+# hits them alike.
 set -euo pipefail
 TREES=$1
 TOOLS=$2
@@ -41,7 +43,13 @@ for tool in $TOOLS; do
 done
 
 for n in $SIZES; do
-  [ -f "data/corpus-$n/corpus.eld" ] || emacs -Q --batch -l corpus.el "data/corpus-$n" "$n" | tail -1
+  [ -f "data/corpus-$n/corpus.eld" ] && continue
+  case $n in
+    # The save corpus: 1000 notes and the big files save-1mb and
+    # save-10mb edit
+    save) emacs -Q --batch -l corpus.el data/corpus-save 1000 big | tail -1 ;;
+    *) emacs -Q --batch -l corpus.el "data/corpus-$n" "$n" | tail -1 ;;
+  esac
 done
 
 for round in $(seq "$ROUNDS"); do
