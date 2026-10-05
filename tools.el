@@ -17,15 +17,15 @@
     (org-node :adapter org-node :packages (org-node org-mem))
     (supertag :adapter supertag :packages (ht)
               :vc (supertag "https://github.com/yibie/supertag"
-                            "3cae90ec8a8a815a2a07f00e3f7c8a4ced24e534"))
+                            "ab53f23500d88bd5c1034e056d7fb9597d900e61"))
     (vulpea :adapter vulpea :packages (vulpea))
     ;; vulpea with the settings its README recommends for speed
     (vulpea-tuned :adapter vulpea-tuned :packages (emacsql s dash)
                   :vc (vulpea "https://github.com/d12frosted/vulpea"
-                              "f3af60a6dcfdababa74232b3b58fd44c511cfc4a"))
+                              "47512ef849731b406598a39823c235a43fda8e12"))
     (vulpea-master :adapter vulpea :packages (emacsql s dash)
                    :vc (vulpea "https://github.com/d12frosted/vulpea"
-                               "f3af60a6dcfdababa74232b3b58fd44c511cfc4a"))))
+                               "47512ef849731b406598a39823c235a43fda8e12"))))
 
 (provide 'tools)
 ;;; tools.el ends here
