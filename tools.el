@@ -3,6 +3,7 @@
 ;; Each entry: (TOOL . PLIST)
 ;;   :packages  packages to install from the archives below (with deps)
 ;;   :vc        (NAME URL REV) packages installed from git at REV
+;;   :vc-deps   ((NAME URL REV) ...) git dependencies installed before :vc
 ;;   :adapter   file in adapters/ implementing the bench-tool-* functions
 ;; Archive installs take the version the archive currently serves;
 ;; the installed versions are recorded with every result.
@@ -16,6 +17,8 @@
   '((org-roam :adapter org-roam :packages (org-roam))
     (org-node :adapter org-node :packages (org-node org-mem))
     (supertag :adapter supertag :packages (ht)
+              :vc-deps ((textui "https://github.com/yibie/textui"
+                                "8b3010d0f251b52dd1867c741d18bf66e405922d"))
               :vc (supertag "https://github.com/yibie/supertag"
                             "ab53f23500d88bd5c1034e056d7fb9597d900e61"))
     (vulpea :adapter vulpea :packages (vulpea))
