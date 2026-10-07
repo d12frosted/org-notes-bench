@@ -79,7 +79,7 @@ vulpea adapter is configured to read that property too.
 ```
 
 `REPEAT` (default 3) sets how many runs each number is the median of.
-Results are appended to `results/raw.jsonl`, one JSON line per run, with
+Local results are appended to `results/raw.jsonl` (not tracked), one JSON line per run, with
 the Emacs, Org and package versions it ran against.
 
 Tools and versions are pinned in `tools.el`: archive packages install the

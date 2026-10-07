@@ -2,3 +2,4 @@
 /data/
 *.elc
 /results/aws/
+/results/raw.jsonl
