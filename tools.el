@@ -20,15 +20,15 @@
               :vc-deps ((textui "https://github.com/yibie/textui"
                                 "8b3010d0f251b52dd1867c741d18bf66e405922d"))
               :vc (supertag "https://github.com/yibie/supertag"
-                            "ab53f23500d88bd5c1034e056d7fb9597d900e61"))
+                            "19031155a337db866c1bf92700a8640d362158c5"))
     (vulpea :adapter vulpea :packages (vulpea))
     ;; vulpea with the settings its README recommends for speed
     (vulpea-tuned :adapter vulpea-tuned :packages (emacsql s dash)
                   :vc (vulpea "https://github.com/d12frosted/vulpea"
-                              "47512ef849731b406598a39823c235a43fda8e12"))
+                              "d9be36367be3d91fa964756c6425309a034cc3b2"))
     (vulpea-master :adapter vulpea :packages (emacsql s dash)
                    :vc (vulpea "https://github.com/d12frosted/vulpea"
-                               "47512ef849731b406598a39823c235a43fda8e12"))))
+                               "d9be36367be3d91fa964756c6425309a034cc3b2"))))
 
 (provide 'tools)
 ;;; tools.el ends here
