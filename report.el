@@ -68,11 +68,14 @@
       (puthash (report-get row 'tool) version latest)))
   (dolist (row rows)
     ;; Rows without versions (runs the watchdog stopped) count as latest;
-    ;; save runs from before harness 3 measured show-paren or a stale file
+    ;; save runs from before harness 3 measured show-paren or a stale file,
+    ;; backlinks runs from before harness 4 a median of 5
     (when (and (member (report-version row)
                        (list nil (gethash (report-get row 'tool) latest)))
-               (not (and (string-prefix-p "save" (or (report-get row 'op) ""))
-                         (< (or (report-get row 'harness) 1) 3))))
+               (let ((op (or (report-get row 'op) ""))
+                     (harness (or (report-get row 'harness) 1)))
+                 (not (or (and (string-prefix-p "save" op) (< harness 3))
+                          (and (equal op "backlinks") (< harness 4))))))
       (push row (alist-get (list (report-get row 'tool)
                                  (report-get row 'corpus)
                                  (report-get row 'op))
@@ -101,7 +104,7 @@
                       ("Warm start, until a note can be looked up" "warm" ms)
                       ("Open the find command (until the minibuffer)" "find" ms)
                       ("Backlinks of the hub note, first call" "backlinks" first-ms)
-                      ("Backlinks of the hub note, median of 5" "backlinks" ms)))
+                      ("Backlinks of the hub note, mean of 10 later calls" "backlinks" ms)))
         (report-table (car spec) (cons "tool" sizes)
                       (mapcar (lambda (tool)
                                 (cons tool

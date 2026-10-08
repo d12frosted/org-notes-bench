@@ -20,10 +20,11 @@
 
 (defconst bench-root (file-name-directory (or load-file-name buffer-file-name)))
 
-(defconst bench-harness-version 3
+(defconst bench-harness-version 4
   "Bumped when a change to the harness invalidates earlier results.
 2: show-paren no longer runs during the save benchmarks.
-3: a save run waits until its cleanup is indexed before exiting.")
+3: a save run waits until its cleanup is indexed before exiting.
+4: backlinks reports the mean of 10 calls after the first, not a median of 5.")
 (load (expand-file-name "tools.el" bench-root) nil t)
 
 ;;; Measuring
@@ -229,15 +230,25 @@ one."
       (advice-remove 'completing-read capture))))
 
 (defun bench-op-backlinks ()
-  "Time fetching the notes that link to the hub; median of 5."
+  "Time fetching the notes that link to the hub.
+
+The first call is reported on its own, since it pays for any cache
+the tool fills on demand.  Then come 10 more calls, reported as their
+mean: a call that allocates a lot triggers garbage collection on some
+calls and not others, so a median of a few calls depends on which ones
+catch it, while the mean spreads that cost evenly over all of them."
   (bench-ready)
   (let* ((id (plist-get bench-corpus-info :hub-id))
-         (runs (cl-loop repeat 5 collect (bench-time (bench-tool-backlinks id))))
-         (times (sort (mapcar #'car runs) #'<)))
-    ;; The first call pays for any cache the tool fills on demand
-    (bench-put :first-ms (bench-ms (caar runs)))
-    (bench-put :ms (bench-ms (nth 2 times)))
-    (bench-put :sources (cdar runs))))
+         (first (bench-time (bench-tool-backlinks id)))
+         (gc0 gc-elapsed)
+         (runs (cl-loop repeat 10 collect (car (bench-time (bench-tool-backlinks id)))))
+         (gc (- gc-elapsed gc0)))
+    (bench-put :first-ms (bench-ms (car first)))
+    (bench-put :ms (bench-ms (/ (apply #'+ runs) (length runs))))
+    (bench-put :min-ms (bench-ms (apply #'min runs)))
+    (bench-put :max-ms (bench-ms (apply #'max runs)))
+    (bench-put :gc-ms (bench-ms (/ gc (length runs))))
+    (bench-put :sources (cdr first))))
 
 (defun bench-op-save (file)
   "Add a heading with a new ID to FILE, save, wait until it is findable."

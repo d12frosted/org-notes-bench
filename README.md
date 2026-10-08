@@ -24,7 +24,7 @@ maintainer agrees their tool is measured fairly.
 | `cold`      | Building the index from nothing, until it is complete. |
 | `warm`      | Starting in a new session with the index from `cold` on disk, the way a user's init would, until a known note can be looked up by ID. |
 | `find`      | The package's find command (`org-roam-node-find`, `org-node-find`, `supertag-find-node`, `vulpea-find`) from the call until it opens the minibuffer, plus listing every candidate of its completion table. |
-| `backlinks` | Fetching the notes that link to the most linked note: the first call, and the median of five. |
+| `backlinks` | Fetching the notes that link to the most linked note: the first call, and the mean of ten calls after it (with their minimum, maximum and garbage collection time per call). |
 | `save-1mb`, `save-10mb` | Visiting a large file, adding a heading with a new ID, saving, and waiting until the new note can be looked up by ID. Reported as the longest stretch Emacs was blocked (what you feel as a freeze) and the time until the note is findable. |
 
 Some numbers are not like-for-like, by design of the packages:
@@ -36,7 +36,10 @@ Some numbers are not like-for-like, by design of the packages:
 - Supertag's `warm` is loading its saved store; its periodic scan for
   external changes runs every 15 minutes and is not part of any number.
 - Several packages memoize query results, which is why `backlinks` reports
-  the first call separately.
+  the first call separately. Later calls are averaged rather than taking a
+  median: a call that allocates a lot triggers garbage collection on some
+  calls and not others, and a median of a few calls depends on which ones
+  catch it.
 
 ## How the measurement works
 
