@@ -20,7 +20,7 @@
               :vc-deps ((textui "https://github.com/yibie/textui"
                                 "8b3010d0f251b52dd1867c741d18bf66e405922d"))
               :vc (supertag "https://github.com/yibie/supertag"
-                            "19031155a337db866c1bf92700a8640d362158c5"))
+                            "dcd3dc25df9c603385e70f425395d53120d9e4b4"))
     (vulpea :adapter vulpea :packages (vulpea))
     ;; vulpea with the settings its README recommends for speed
     (vulpea-tuned :adapter vulpea-tuned :packages (emacsql s dash)
