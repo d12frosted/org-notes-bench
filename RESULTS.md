@@ -5,6 +5,7 @@ Measured 2026-10-08 on AWS EC2 c7gd.2xlarge instances (8 Graviton cores, 16GB, l
 - `vulpea-master` is vulpea's master branch with default settings; `vulpea-tuned` is the same revision with the settings its README recommends for speed (`vulpea-db-async-extraction 'full`, `single-temp-buffer` parsing, no plain-link indexing). The other tools run with their defaults.
 - org-roam's first run at 100k was not measured separately: enabling `org-roam-db-autosync-mode` runs `org-roam-db-sync` synchronously, so it is the cold index, blocking throughout.
 - Backlinks return different things: org-node returns link records, Supertag one aggregated item per source, org-roam and vulpea full notes with their data. The first call is reported on its own; later calls are averaged over ten, so garbage collection counts evenly for every tool.
+- Instances of the same type differ: the same vulpea revision indexed 100k files in 258s on one c7gd.2xlarge and 295s on another, about 15% apart. Rows from one run (one instance, tools interleaved) compare well; rows from different runs only roughly. In the 100k tables, org-node and vulpea come from one run and org-roam and Supertag from another.
 - The corpus is generated from a seeded random state, but the generator's output depends on the Emacs version: the 1k corpus has 1,429 notes under Emacs 30.2 and 1,431 under Emacs 31. Compare numbers from the same Emacs only.
 
 ## Versions

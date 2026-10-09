@@ -178,7 +178,9 @@ for spec in $TREES; do
   mkdir -p "$STAGE/trees/$name"
   cp "$dir"/*.el "$STAGE/trees/$name/"
   rev=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo "?")
-  dirty=$(git -C "$dir" status --porcelain -- '*.el' 2>/dev/null | head -1)
+  # A tree need not be a git checkout; under pipefail a failing git
+  # status would end the run here
+  dirty=$(git -C "$dir" status --porcelain -- '*.el' 2>/dev/null | head -1 || true)
   echo "tree $name: $dir at $rev${dirty:+ (with uncommitted changes)}" >> "$OUT/env.txt"
 done
 tar -C "$STAGE" -czf "$STAGE/trees.tgz" trees

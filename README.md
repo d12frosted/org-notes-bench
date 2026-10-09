@@ -126,6 +126,14 @@ pair and its security group when it exits, also on failure or Ctrl-C;
 the instance terminates itself after `--max-hours` (default 3) in case
 the script cannot. An hour costs about $0.40.
 
+Instances of the same type are not identical: the same build indexed
+100k files about 15% faster on one than on another. Within a run tools
+interleave on one machine, so they compare well; across runs, only
+roughly. To check whether code got faster or slower, compare both
+revisions in one run (`--tree base=... --tree head=...`). When a sweep
+has to split tools across runs, put a cheap tool (org-node) in every
+run as an anchor, so the runs can be lined up against each other.
+
 ## Results
 
 See [RESULTS.md](RESULTS.md) for the latest run, with the machine it ran
