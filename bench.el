@@ -5,6 +5,7 @@
 ;; TOOL    a key of `bench-tools' (tools.el); its packages live in .deps/TOOL
 ;; CORPUS  a directory made by corpus.el
 ;; OP      cold | first-run | warm | find | backlinks | save-1mb | save-10mb
+;;         | search (text search, mainly for tools without an index)
 ;;
 ;; Each run is a fresh Emacs.  The tool's state (database, caches,
 ;; org-id locations, even `user-emacs-directory') lives in
@@ -280,6 +281,111 @@ catch it, while the mean spreads that cost evenly over all of them."
                          :done)
         (message "warning: cleanup of %s was not indexed" file)))))
 
+;;; Text search, mainly for tools without an index
+
+(defun bench-last-note-id ()
+  "ID of the last note of the corpus.
+Notes link to earlier notes only, so this ID occurs once in the whole
+corpus: on the :ID: line of its own file."
+  (let* ((i (1- (plist-get bench-corpus-info :n)))
+         (file (expand-file-name (format "notes/%03d/note-%06d.org" (/ i 100) i)
+                                 bench-corpus)))
+    (with-temp-buffer
+      (insert-file-contents file nil 0 200)
+      (unless (re-search-forward "^:ID: +\\(.+\\)$" nil t)
+        (error "No ID in %s" file))
+      (match-string 1))))
+
+(defun bench-run-process (command directory)
+  "Run COMMAND, a list of strings, in DIRECTORY; return its lines of output.
+The process runs asynchronously and its output arrives through a
+process filter, the way a package that starts a search program reads
+it.  Return the number of lines once the process has exited."
+  (let* ((default-directory (file-name-as-directory directory))
+         (lines 0)
+         (process (make-process
+                   :name "bench-search" :command command :buffer nil
+                   :connection-type 'pipe :noquery t
+                   :filter (lambda (_process text)
+                             (let ((start 0))
+                               (while (setq start (string-search "\n" text start))
+                                 (setq lines (1+ lines)
+                                       start (1+ start)))))
+                   :sentinel #'ignore)))
+    (while (process-live-p process)
+      (accept-process-output process 1))
+    ;; Output can still be in the pipe when the process is gone
+    (while (accept-process-output process 0))
+    (unless (memq (process-exit-status process) '(0 1))
+      (error "%s exited with %s" (car command) (process-exit-status process)))
+    lines))
+
+(declare-function consult--directory-prompt "ext:consult")
+
+(defun bench-consult-grep-command (command &optional input)
+  "Return (COMMAND-LINE . DIRECTORY) of the search a Consult grep COMMAND starts.
+COMMAND is a function of no arguments that calls a command built on
+`consult--grep', such as `hyrolo-consult-fgrep' or `org-node-grep'.
+
+Consult shows its matches in the minibuffer, which a batch Emacs does
+not have.  So COMMAND runs as a user would run it, up to the point
+where Consult would start its search program; the command line it has
+built by then is returned, for `bench-run-process' to run to its end.
+INPUT is what the user would type at a prompt that starts empty.
+
+What this leaves out is Consult's wait for the user to stop typing
+\(`consult-async-input-debounce', 0.2s) and its drawing of the
+matches."
+  (let* (found
+         (capture (lambda (prompt make-builder dir initial)
+                    ;; The first lines of `consult--grep'
+                    (pcase-let* ((`(,_ ,paths ,dir) (consult--directory-prompt prompt dir))
+                                 (default-directory dir)
+                                 (builder (funcall make-builder paths)))
+                      (setq found (cons (car (funcall builder (or initial input)))
+                                        dir))))))
+    (advice-add 'consult--grep :override capture)
+    (unwind-protect
+        (funcall command)
+      (advice-remove 'consult--grep capture))
+    (or found (error "The command never reached Consult"))))
+
+(defun bench-op-search ()
+  "Time a search for a fixed string in every note, without an index.
+
+Two strings are searched for, each standing for something an index
+answers: the ID of the last note, which occurs on one line (a lookup
+by ID), and the ID of the hub, which occurs on every line that links to
+it (its backlinks).
+
+The first search of the session is reported on its own, since a tool
+may read the files into Emacs then and keep them.  It looks for the
+last note's ID.  Each string is then searched for three more times and
+reported as the mean."
+  (let* ((start (bench-time (bench-tool-start)))
+         (one (bench-last-note-id))
+         (hub (plist-get bench-corpus-info :hub-id))
+         (first (bench-time (bench-tool-search one)))
+         (mean (lambda (string)
+                 (let ((runs (cl-loop repeat 3
+                                      collect (bench-time (bench-tool-search string)))))
+                   (cons (/ (apply #'+ (mapcar #'car runs)) (length runs))
+                         (cdar runs)))))
+         (one-run (funcall mean one))
+         (hub-run (funcall mean hub)))
+    (bench-put :rg (car (split-string (shell-command-to-string "rg --version") "\n")))
+    (bench-put :start-ms (bench-ms (car start)))
+    (bench-put :first-ms (bench-ms (car first)))
+    (bench-put :one-ms (bench-ms (car one-run)))
+    (bench-put :one-matches (cdr one-run))
+    (bench-put :hub-ms (bench-ms (car hub-run)))
+    (bench-put :hub-matches (cdr hub-run))
+    ;; A tool that searches headings does not see the last note's ID,
+    ;; which is in the drawer at the top of its file, so only the hub
+    ;; must be found
+    (unless (and (integerp (cdr hub-run)) (> (cdr hub-run) 0))
+      (error "Search found nothing that links to the hub"))))
+
 ;;; Main
 
 (defun bench-main (tool corpus op)
@@ -316,6 +422,11 @@ catch it, while the mean spreads that cost evenly over all of them."
         nil t)
   (bench-tool-configure bench-corpus bench-state)
   (bench-put :op (symbol-name op))
+  ;; A tool without an index implements `search' and nothing else, and
+  ;; most of the others do not implement `search'
+  (unless (fboundp (if (eq op 'search) 'bench-tool-search 'bench-tool-cold-index))
+    (message "RESULT {\"op\":\"%s\",\"skipped\":\"not implemented by %s\"}" op tool)
+    (kill-emacs 0))
   (pcase op
     ('cold (bench-op-cold))
     ('first-run (bench-op-first-run))
@@ -324,6 +435,7 @@ catch it, while the mean spreads that cost evenly over all of them."
     ('backlinks (bench-op-backlinks))
     ('save-1mb (bench-op-save "big-1mb.org"))
     ('save-10mb (bench-op-save "big-10mb.org"))
+    ('search (bench-op-search))
     (_ (error "Unknown op %s" op)))
   (bench-write-result))
 

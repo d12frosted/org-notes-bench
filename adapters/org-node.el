@@ -38,4 +38,12 @@
 (defun bench-tool-find-command ()
   #'org-node-find)
 
+(defun bench-tool-search (string)
+  ;; `org-node-grep' hands ripgrep to Consult, over the directories of
+  ;; the files org-mem knows; a first call waits for that list.  The
+  ;; prompt starts empty, so STRING is what the user types.  One line
+  ;; of output per matching line; see `bench-consult-grep-command'
+  (let ((search (bench-consult-grep-command #'org-node-grep string)))
+    (bench-run-process (car search) (cdr search))))
+
 ;;; org-node.el ends here

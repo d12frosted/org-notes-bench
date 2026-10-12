@@ -81,8 +81,24 @@
                                  (report-get row 'op))
                            groups nil nil #'equal))))
   (let* ((only (when-let* ((env (getenv "REPORT_TOOLS"))) (split-string env)))
-         (tools (seq-filter (lambda (tool) (or (null only) (member tool only)))
-                            (seq-uniq (mapcar (lambda (r) (report-get r 'tool)) rows))))
+         (all-tools (seq-filter (lambda (tool) (or (null only) (member tool only)))
+                                (seq-uniq (mapcar (lambda (r) (report-get r 'tool)) rows))))
+         ;; `search' has tables of its own, for the tools that ran it.
+         ;; A tool without an index ran nothing else and is left out of
+         ;; the other tables
+         (runs-p (lambda (tool search)
+                   (seq-some (lambda (r) (and (equal (report-get r 'tool) tool)
+                                              (eq search (equal (report-get r 'op) "search"))))
+                             rows)))
+         (search-tools (seq-filter (lambda (tool) (funcall runs-p tool t)) all-tools))
+         (tools (seq-filter (lambda (tool) (funcall runs-p tool nil)) all-tools))
+         ;; In the tables of the other operations, a tool without an index
+         ;; shows that it has none, and its start-up as its warm start.
+         ;; Plain ripgrep, which is no package, stays in the search tables
+         (package-p (lambda (tool)
+                      (consp (report-get (seq-find (lambda (r) (equal (report-get r 'tool) tool)) rows)
+                                         'versions))))
+         (index-free (seq-filter package-p (seq-difference search-tools tools)))
          (corpora (sort (seq-uniq
                          (delq nil (mapcar (lambda (r)
                                              (let ((c (report-get r 'corpus)))
@@ -97,6 +113,14 @@
     (princ "## Versions\n\n")
     (dolist (tool tools)
       (princ (format "- %s: %s\n" tool (gethash tool latest))))
+    (dolist (tool (seq-difference search-tools tools))
+      ;; The packages of a tool that only searches
+      (let ((versions (report-get (seq-find (lambda (r) (equal (report-get r 'tool) tool)) rows)
+                                  'versions)))
+        (princ (format "- %s: %s\n" tool
+                       (if (consp versions)
+                           (mapconcat (lambda (v) (format "%s %s" (car v) (cdr v))) versions ", ")
+                         "no package")))))
     (let ((sizes (mapcar (lambda (c) (substring c 7)) corpora)))
       (dolist (spec '(("Cold index (synchronous, nothing else running)" "cold" ms)
                       ("First run on an empty index, until every note is indexed" "first-run" ms)
@@ -109,25 +133,34 @@
                       (mapcar (lambda (tool)
                                 (cons tool
                                       (mapcar (lambda (c)
+                                                (if (member tool index-free)
+                                                    (pcase (nth 1 spec)
+                                                      ((or "cold" "first-run") "no index")
+                                                      ("warm" (report-fmt-ms (funcall stat tool c "search" 'start-ms)))
+                                                      (_ "-"))
                                                 (let ((value (funcall stat tool c (nth 1 spec) (nth 2 spec)))
                                                       (stopped (or (funcall stat tool c (nth 1 spec) 'stopped-after-ms)
                                                                    (funcall stat tool c "cold" 'stopped-after-ms))))
                                                   (cond (value (report-fmt-ms value))
                                                         (stopped (format "not done after %s"
                                                                          (report-fmt-ms stopped)))
-                                                        (t "-"))))
+                                                        (t "-")))))
                                               corpora)))
-                              tools))))
+                              (append tools index-free)))))
     (report-table "Saving a large file (1k-note corpus)"
                   '("tool" "1MB longest freeze" "1MB until findable"
                     "10MB longest freeze" "10MB until findable")
-                  (mapcar (lambda (tool)
+                  (append
+                   (mapcar (lambda (tool)
                             (list tool
                                   (report-fmt-ms (funcall stat tool "corpus-save" "save-1mb" 'max-block-ms))
                                   (report-fmt-ms (funcall stat tool "corpus-save" "save-1mb" 'ms))
                                   (report-fmt-ms (funcall stat tool "corpus-save" "save-10mb" 'max-block-ms))
                                   (report-fmt-ms (funcall stat tool "corpus-save" "save-10mb" 'ms))))
-                          tools))
+                          tools)
+                   ;; Nothing to update on save: the next search reads the file
+                   (mapcar (lambda (tool) (list tool "no index" "no index" "no index" "no index"))
+                           index-free)))
     (report-table "Sanity: what each tool counted"
                   (cons "tool" (append (mapcar (lambda (c) (concat "notes " (substring c 7))) corpora)
                                        (mapcar (lambda (c) (concat "candidates " (substring c 7))) corpora)
@@ -138,6 +171,28 @@
                                    (mapcar (lambda (c) (format "%s" (or (funcall stat tool c "cold" 'indexed) "-"))) corpora)
                                    (mapcar (lambda (c) (format "%s" (or (funcall stat tool c "find" 'candidates) "-"))) corpora)
                                    (mapcar (lambda (c) (format "%s" (or (funcall stat tool c "backlinks" 'sources) "-"))) corpora))))
-                          tools))))
+                          tools))
+    (when search-tools
+      (let ((sizes (mapcar (lambda (c) (substring c 7)) corpora)))
+        (dolist (spec '(("Text search: starting up" start-ms)
+                        ("Text search: first search of a session" first-ms)
+                        ("Text search: one note by its ID" one-ms)
+                        ("Text search: every line that links to the hub" hub-ms)))
+          (report-table (car spec) (cons "tool" sizes)
+                        (mapcar (lambda (tool)
+                                  (cons tool
+                                        (mapcar (lambda (c)
+                                                  (report-fmt-ms (funcall stat tool c "search" (nth 1 spec))))
+                                                corpora)))
+                                search-tools)))
+        (report-table "Text search: what each tool matched"
+                      (cons "tool" (append (mapcar (lambda (c) (concat "one " (substring c 7))) corpora)
+                                           (mapcar (lambda (c) (concat "hub " (substring c 7))) corpora)))
+                      (mapcar (lambda (tool)
+                                (cons tool
+                                      (append
+                                       (mapcar (lambda (c) (format "%s" (or (funcall stat tool c "search" 'one-matches) "-"))) corpora)
+                                       (mapcar (lambda (c) (format "%s" (or (funcall stat tool c "search" 'hub-matches) "-"))) corpora))))
+                              search-tools))))))
 
 ;;; report.el ends here

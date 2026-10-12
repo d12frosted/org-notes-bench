@@ -15,6 +15,14 @@
         package-archives bench-archives
         package-install-upgrade-built-in nil)
   (package-initialize)
+  ;; Development snapshots from GNU ELPA go in first and on their own,
+  ;; so that no other package comes from there
+  (when-let* ((devel (plist-get spec :devel)))
+    (let ((package-archives '(("gnu-devel" . "https://elpa.gnu.org/devel/"))))
+      (package-refresh-contents)
+      (dolist (pkg devel)
+        (unless (package-installed-p pkg)
+          (package-install pkg)))))
   (package-refresh-contents)
   (dolist (pkg (plist-get spec :packages))
     (unless (package-installed-p pkg)
