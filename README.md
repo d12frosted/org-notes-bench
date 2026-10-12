@@ -26,6 +26,7 @@ maintainer agrees their tool is measured fairly.
 | `find`      | The package's find command (`org-roam-node-find`, `org-node-find`, `supertag-find-node`, `vulpea-find`) from the call until it opens the minibuffer, plus listing every candidate of its completion table. |
 | `backlinks` | Fetching the notes that link to the most linked note: the first call, and the mean of ten calls after it (with their minimum, maximum and garbage collection time per call). |
 | `save-1mb`, `save-10mb` | Visiting a large file, adding a heading with a new ID, saving, and waiting until the new note can be looked up by ID. Reported as the longest stretch Emacs was blocked (what you feel as a freeze) and the time until the note is findable. |
+| `search` | Searching the text of every note for a fixed string, mainly for tools without an index. See below. |
 
 Some numbers are not like-for-like, by design of the packages:
 
@@ -40,6 +41,50 @@ Some numbers are not like-for-like, by design of the packages:
   median: a call that allocates a lot triggers garbage collection on some
   calls and not others, and a median of a few calls depends on which ones
   catch it.
+
+## Text search
+
+Some tools keep no index and answer by searching the files each time.
+They have nothing to build, load or update, so the report shows "no
+index" for them where the other tools index, and their start-up as
+their warm start. They get one operation of their own, `search`, on
+the same notes:
+
+- [GNU Hyperbole](https://www.gnu.org/software/hyperbole/)'s HyRolo
+  through Consult and ripgrep (`hyrolo`), and through its own search
+  that reads the files in Emacs (`hyrolo-native`);
+- [org-ql](https://github.com/alphapapa/org-ql)'s search for a regexp,
+  which also reads the files in Emacs (`org-ql`).
+
+Of the packages with an index, org-node has a text search as well,
+`org-node-grep`, which hands ripgrep the directories of the files it
+knows. It runs `search` too. org-roam and vulpea have no command that
+searches the text of notes, and Supertag's searches what its index
+holds, which for a note that is a whole file does not include its
+text. Plain `rg` started from Emacs runs `search` for reference
+(`ripgrep`), to show how much of a tool's time is ripgrep's.
+
+`search` looks for two fixed strings, each standing for something an
+index answers: the ID of the last note, which occurs on one line (a
+lookup by ID), and the ID of the hub, which occurs on every line that
+links to it (its backlinks). It reports the time to start the tool,
+the first search of the session, and for each string the mean of three
+more searches.
+
+The tools do not return the same thing. The ones that search through
+ripgrep (`hyrolo`, `org-node`, `ripgrep`) return the matching lines.
+HyRolo's own search returns the matching entries whole, with their
+sub-entries. org-ql returns headings, and does not see what is
+written before a file's first heading, which is where the last note's
+ID and most links to the hub are. The report lists what each tool
+matched.
+
+A batch Emacs has no minibuffer, so Consult cannot show its matches
+there. For the two tools that search through Consult (`hyrolo`,
+`org-node`), the adapter runs the tool's command up to the point where
+Consult would start ripgrep, takes the command line built by then, and
+runs it to its end. Consult's wait for the user to stop typing (0.2s
+by default) and the drawing of the matches are not part of the number.
 
 ## How the measurement works
 
@@ -87,7 +132,14 @@ the Emacs, Org and package versions it ran against.
 
 Tools and versions are pinned in `tools.el`: archive packages install the
 version MELPA Stable serves, git packages a fixed revision. The adapters
-are in `adapters/`; each defines the same eight functions.
+are in `adapters/`; each defines the same eight functions. An adapter
+that defines `bench-tool-search` runs `search`, and the adapter of a
+tool without an index defines nothing else.
+
+```sh
+./run.sh install hyrolo ripgrep        # search needs rg on PATH
+emacs -Q --batch -l bench.el hyrolo data/corpus-10000 search
+```
 
 ### On a clean machine (AWS)
 
