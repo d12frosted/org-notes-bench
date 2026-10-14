@@ -141,11 +141,23 @@ aws ec2 create-key-pair --key-name "$RUN" --key-type ed25519 \
   --query KeyMaterial --output text > "$KEY"
 chmod 600 "$KEY"
 SG=$(aws ec2 create-security-group --group-name "$RUN" --vpc-id "$VPC" \
-  --description "org-notes-bench $RUN, ssh from one address" \
+  --description "org-notes-bench $RUN, ssh from this machine" \
   --tag-specifications "ResourceType=security-group,Tags=[{Key=Project,Value=org-notes-bench}]" \
   --query GroupId --output text)
 aws ec2 authorize-security-group-ingress --group-id "$SG" \
   --protocol tcp --port 22 --cidr "$MYIP/32" >/dev/null
+# A home or mobile connection can change its public address during a
+# run; each new one is let in too, or the run loses its instance
+ALLOWED=" $MYIP "
+allow_me() {
+  local ip
+  ip=$(curl -fsS --max-time 10 https://checkip.amazonaws.com) || return 0
+  case "$ALLOWED" in *" $ip "*) return 0 ;; esac
+  aws ec2 authorize-security-group-ingress --group-id "$SG" \
+    --protocol tcp --port 22 --cidr "$ip/32" >/dev/null 2>&1 || true
+  ALLOWED="$ALLOWED$ip "
+  log "this machine's address is now $ip; let it in too"
+}
 
 USERDATA=$(printf '#!/bin/sh\nshutdown -h +%d\n' $((MAX_HOURS * 60)))
 IID=$(aws ec2 run-instances --image-id "$AMI" --instance-type "$TYPE" \
@@ -163,7 +175,7 @@ IP=$(aws ec2 describe-instances --instance-ids "$IID" \
 SSH_OPTS="-i $KEY -o IdentityAgent=none -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$OUT/known_hosts -o ConnectTimeout=10 -o ServerAliveInterval=30 -o LogLevel=ERROR"
 rsh() { ssh $SSH_OPTS "ubuntu@$IP" "$@"; }
 rcp() { scp -q $SSH_OPTS "$@"; }
-for _ in $(seq 1 60); do rsh true 2>/dev/null && break; sleep 5; done
+for _ in $(seq 1 60); do allow_me; rsh true 2>/dev/null && break; sleep 5; done
 rsh true || die "instance never accepted SSH"
 
 # The harness without its generated data, and each tree's sources
@@ -205,6 +217,7 @@ deadline=$(( $(date +%s) + MAX_HOURS * 3600 ))
 while ! rsh test -f finished 2>/dev/null; do
   [ "$(date +%s)" -lt "$deadline" ] || die "no result after $MAX_HOURS hours"
   sleep 30
+  allow_me
   # Show benchmark lines as they land
   lines=$(rsh "cat run.log 2>/dev/null | wc -l" 2>/dev/null || echo "$seen")
   if [ "$lines" -gt "$seen" ]; then
@@ -212,6 +225,7 @@ while ! rsh test -f finished 2>/dev/null; do
     seen=$lines
   fi
 done
+allow_me
 code=$(rsh cat finished)
 rcp "ubuntu@$IP:setup.log" "ubuntu@$IP:run.log" "$OUT/" || true
 rcp "ubuntu@$IP:/mnt/bench/onb/results/raw.jsonl" "$OUT/raw.jsonl" 2>/dev/null || true
